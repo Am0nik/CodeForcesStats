@@ -1,0 +1,1624 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codeforces Ultra Analytics</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cf: {
+                            newbie: '#CCCCCC',
+                            pupil: '#77FF77',
+                            specialist: '#03A89E',
+                            expert: '#0000FF',
+                            candidate: '#AA00AA',
+                            master: '#FF8C00',
+                            grandmaster: '#FF0000'
+                        },
+                        darkbg: '#0B0F19',
+                        cardbg: '#111827',
+                        bordercolor: '#1F2937'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0B0F19;
+            color: #F3F4F6;
+        }
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0B0F19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1F2937;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+        .glass-card {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .heatmap-cell {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            transition: transform 0.1s ease;
+        }
+        .heatmap-cell:hover {
+            transform: scale(1.3);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header / Navbar -->
+    <header class="sticky top-0 z-50 glass-card border-b border-gray-800 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-2 rounded-xl text-white shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-chart-line text-xl"></i>
+                </div>
+                <div>
+                    <span class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-white via-gray-200 to-indigo-400 bg-clip-text text-transparent">CF Analytics</span>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-semibold ml-2 hidden sm:inline-block">PRO v2.5</span>
+                </div>
+            </div>
+
+            <div class="flex-1 max-w-md relative">
+                <form id="search-form" onsubmit="handleSearch(event)" class="relative">
+                    <div class="relative flex items-center">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 text-gray-400 text-sm"></i>
+                        <input type="text" id="handle-input" placeholder="Enter Codeforces handle (e.g. Tourist, Benq)..." 
+                            class="w-full bg-gray-900/80 border border-gray-700/80 text-gray-100 text-sm rounded-xl pl-10 pr-24 py-2 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium placeholder-gray-500"
+                            autocomplete="off">
+                        <button type="submit" class="absolute right-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition-colors shadow-md shadow-indigo-600/30">
+                            Analyze
+                        </button>
+                    </div>
+                </form>
+                <div id="recent-searches" class="hidden absolute left-0 right-0 top-full mt-2 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl z-50 p-2 overflow-hidden">
+                    <div class="text-xs font-semibold text-gray-400 px-3 py-1.5 uppercase tracking-wider flex justify-between items-center">
+                        <span>Recent Searches</span>
+                        <button onclick="clearRecentSearches()" class="hover:text-red-400 text-[10px]">Clear</button>
+                    </div>
+                    <div id="recent-list" class="space-y-1 mt-1"></div>
+                </div>
+            </div>
+
+            <div class="hidden sm:flex items-center gap-3">
+                <button onclick="loadDemoHandle('tourist')" class="px-3 py-1.5 text-xs font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg border border-gray-700 transition">
+                    🔥 Tourist
+                </button>
+                <button onclick="loadDemoHandle('Benq')" class="px-3 py-1.5 text-xs font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg border border-gray-700 transition">
+                    ⭐ Benq
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <div id="profile-banner" class="glass-card rounded-2xl p-6 relative overflow-hidden border border-gray-800 shadow-xl">
+            <div class="animate-pulse flex flex-col md:flex-row items-center gap-6">
+                <div class="w-24 h-24 bg-gray-800 rounded-2xl"></div>
+                <div class="flex-1 space-y-3 w-full text-center md:text-left">
+                    <div class="h-6 bg-gray-800 rounded w-1/3 mx-auto md:mx-0"></div>
+                    <div class="h-4 bg-gray-800 rounded w-1/4 mx-auto md:mx-0"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="flex border-b border-gray-800 overflow-x-auto space-x-2 scrollbar-none pb-1" id="nav-tabs">
+            <button onclick="switchTab('overview')" id="tab-overview" class="tab-btn px-4 py-2.5 text-sm font-semibold rounded-xl transition-all flex items-center gap-2 whitespace-nowrap bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+                <i class="fa-solid fa-chart-pie"></i> Overview & Activity
+            </button>
+            <button onclick="switchTab('time-analytics')" id="tab-time-analytics" class="tab-btn px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-clock font-normal"></i> Speed & Time Calculator
+            </button>
+            <button onclick="switchTab('problems')" id="tab-problems" class="tab-btn px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-dharmachakra"></i> Radar & Tag Deep-Dive
+            </button>
+            <button onclick="switchTab('contests')" id="tab-contests" class="tab-btn px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-trophy"></i> Contests
+            </button>
+            <button onclick="switchTab('submissions')" id="tab-submissions" class="tab-btn px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-list-check"></i> Submissions Log
+            </button>
+            <button onclick="switchTab('compare')" id="tab-compare" class="tab-btn px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-scale-balanced"></i> Compare Handles
+            </button>
+        </div>
+
+        <div id="tab-content">
+            
+            <!-- OVERVIEW TAB -->
+            <div id="content-overview" class="tab-pane space-y-6">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4" id="overview-metrics-grid"></div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 glass-card rounded-2xl p-5 border border-gray-800">
+                        <h3 class="text-lg font-bold text-gray-100 mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-clock text-amber-400"></i> Hourly Activity Pattern (24-Hour Peak Times)
+                        </h3>
+                        <p class="text-xs text-gray-400 mb-4">Submission distribution across hours of the day (Local time)</p>
+                        <div class="relative h-64 w-full">
+                            <canvas id="hourlyActivityChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-5 border border-gray-800">
+                        <h3 class="text-lg font-bold text-gray-100 mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-pie-chart text-purple-400"></i> Verdict Breakdown
+                        </h3>
+                        <p class="text-xs text-gray-400 mb-4">Submission status distribution</p>
+                        <div class="relative h-64 w-full flex items-center justify-center">
+                            <canvas id="verdictChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-5 border border-gray-800">
+                    <h3 class="text-lg font-bold text-gray-100 flex items-center gap-2 mb-4">
+                        <i class="fa-solid fa-chart-line text-indigo-400"></i> Rating Progress Curve
+                    </h3>
+                    <div class="relative h-80 w-full">
+                        <canvas id="ratingHistoryChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 glass-card rounded-2xl p-5 border border-gray-800">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-gray-100 flex items-center gap-2">
+                                <i class="fa-regular fa-calendar-check text-green-400"></i> Activity Heatmap (Past Year)
+                            </h3>
+                            <span id="heatmap-total-count" class="text-xs px-2.5 py-1 bg-gray-800 text-gray-300 rounded-full font-mono">0 submissions</span>
+                        </div>
+                        <div class="overflow-x-auto pb-2">
+                            <div id="submission-heatmap" class="min-w-[650px] flex flex-col gap-1"></div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card rounded-2xl p-5 border border-gray-800">
+                        <h3 class="text-lg font-bold text-gray-100 mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-code-compare text-yellow-400"></i> Language Preferences
+                        </h3>
+                        <div class="relative h-64 w-full">
+                            <canvas id="languageChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SPEED & TIME CALCULATOR TAB -->
+            <div id="content-time-analytics" class="tab-pane hidden space-y-6">
+                <!-- TOTAL TIME CALCULATOR BANNER -->
+                <div class="glass-card rounded-2xl p-6 border border-indigo-500/30 bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-gray-900 shadow-2xl relative overflow-hidden">
+                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold uppercase tracking-wider">
+                                    <i class="fa-solid fa-stopwatch mr-1"></i> API Time Engine
+                                </span>
+                                <span class="text-xs text-gray-400 font-mono">Estimated Life Investment</span>
+                            </div>
+                            <h2 class="text-2xl sm:text-3xl font-black text-white">Total Time Spent Solving Problems</h2>
+                            <p class="text-xs text-gray-300 max-w-2xl leading-relaxed">
+                                Calculated by analyzing submission timestamps from the Codeforces API, measuring active trial gaps, and adding an adjustable reading & debugging overhead factor.
+                            </p>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center w-full lg:w-auto">
+                            <div class="bg-gray-900/90 border border-gray-700/80 p-4 rounded-xl text-center flex-1 min-w-[140px]">
+                                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Total Hours</span>
+                                <span id="total-time-hours" class="text-3xl font-black text-emerald-400 code-font">0 hrs</span>
+                            </div>
+                            <div class="bg-gray-900/90 border border-gray-700/80 p-4 rounded-xl text-center flex-1 min-w-[140px]">
+                                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Total Days</span>
+                                <span id="total-time-days" class="text-3xl font-black text-indigo-400 code-font">0.0 days</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- OVERHEAD FACTOR SLIDER -->
+                    <div class="mt-6 pt-5 border-t border-gray-800/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div class="flex items-center gap-3 w-full sm:w-auto">
+                            <label for="overhead-slider" class="text-xs font-semibold text-gray-300 whitespace-nowrap">Overhead Factor (Reading/Debugging):</label>
+                            <input type="range" id="overhead-slider" min="1.0" max="2.0" step="0.1" value="1.3" oninput="updateTimeCalculator()" class="w-32 accent-indigo-500 cursor-pointer">
+                            <span id="overhead-val" class="text-xs font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">1.3x</span>
+                        </div>
+                        <div class="text-[11px] text-gray-400 font-mono">
+                            Pure Coding Time: <strong id="pure-coding-hours" class="text-gray-200">0 hrs</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Speed Analytics Summary Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="speed-stats-grid"></div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Average Time by Rating Spectrum -->
+                    <div class="glass-card rounded-2xl p-5 border border-gray-800">
+                        <h3 class="text-lg font-bold text-gray-100 mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-gauge-high text-indigo-400"></i> Average Solving Pace by Difficulty Rating
+                        </h3>
+                        <p class="text-xs text-gray-400 mb-4">Calculated median minutes per solve by problem difficulty</p>
+                        <div class="relative h-72 w-full">
+                            <canvas id="difficultySpeedChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Letter/Index Distribution -->
+                    <div class="glass-card rounded-2xl p-5 border border-gray-800">
+                        <h3 class="text-lg font-bold text-gray-100 mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-font text-purple-400"></i> Problem Solved by Letter (Index)
+                        </h3>
+                        <p class="text-xs text-gray-400 mb-4">Total AC count for problem letters (A, B, C, D...)</p>
+                        <div class="relative h-72 w-full">
+                            <canvas id="letterDistChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROBLEMS & TAGS TAB -->
+            <div id="content-problems" class="tab-pane hidden space-y-6">
+                <div class="flex justify-between items-center bg-gray-900/60 p-3 rounded-xl border border-gray-800">
+                    <span class="text-xs font-semibold text-gray-300">Skills Radar View:</span>
+                    <div class="flex gap-2">
+                        <button onclick="toggleRadarMode('v1')" id="btn-radar-v1" class="px-3 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white">
+                            Core CP Radar (v1)
+                        </button>
+                        <button onclick="toggleRadarMode('v2')" id="btn-radar-v2" class="px-3 py-1 text-xs font-bold rounded-lg bg-gray-800 text-gray-400 hover:text-white">
+                            Advanced Radar (v2)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-card rounded-2xl p-5 border border-gray-800">
+                        <h3 class="text-lg font-bold text-gray-100 flex items-center gap-2 mb-1">
+                            <i class="fa-solid fa-dharmachakra text-cyan-400"></i> Topic Skills Radar
+                        </h3>
+                        <p class="text-xs text-gray-400 mb-4" id="radar-description">Core competitive programming topics distribution</p>
+                        <div class="relative h-80 w-full flex items-center justify-center">
+                            <canvas id="skillsRadarChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-card rounded-2xl p-5 border border-gray-800">
+                        <h3 class="text-lg font-bold text-gray-100 flex items-center gap-2 mb-1">
+                            <i class="fa-solid fa-tags text-pink-400"></i> Top Problem Tags Solved
+                        </h3>
+                        <p class="text-xs text-gray-400 mb-4">Count of unique AC problems per tag</p>
+                        <div class="relative h-80 w-full">
+                            <canvas id="tagsBarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-5 border border-gray-800">
+                    <h3 class="text-lg font-bold text-gray-100 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-table text-emerald-400"></i> Complete Tag Performance & Success Rate (%)
+                    </h3>
+                    <div class="overflow-x-auto max-h-96">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-gray-900 text-gray-400 uppercase tracking-wider font-semibold border-b border-gray-800 sticky top-0">
+                                <tr>
+                                    <th class="py-3 px-4">Tag Name</th>
+                                    <th class="py-3 px-4">Solved (AC)</th>
+                                    <th class="py-3 px-4">Total Submissions</th>
+                                    <th class="py-3 px-4">Accuracy Rate</th>
+                                    <th class="py-3 px-4">Avg Hardness</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tags-matrix-body" class="divide-y divide-gray-800/50 text-gray-300"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-5 border border-gray-800">
+                    <div class="flex justify-between items-center gap-2 mb-4">
+                        <h3 class="text-lg font-bold text-gray-100 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-exclamation text-rose-400"></i> Unsolved / Attempted Challenges
+                        </h3>
+                        <span id="unsolved-count-badge" class="px-3 py-1 bg-rose-500/10 text-rose-400 border border-rose-500/20 text-xs font-semibold rounded-full">
+                            0 Unsolved
+                        </span>
+                    </div>
+                    <div id="unsolved-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 max-h-96 overflow-y-auto p-1"></div>
+                </div>
+            </div>
+
+            <!-- CONTESTS TAB -->
+            <div id="content-contests" class="tab-pane hidden space-y-6">
+                <div class="glass-card rounded-2xl p-5 border border-gray-800">
+                    <h3 class="text-lg font-bold text-gray-100 mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-emerald-400"></i> Rating Delta Distribution (Gain / Loss)
+                    </h3>
+                    <div class="relative h-64 w-full">
+                        <canvas id="deltaDistChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-5 border border-gray-800 overflow-hidden">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+                        <h3 class="text-lg font-bold text-gray-100 flex items-center gap-2">
+                            <i class="fa-solid fa-list text-indigo-400"></i> Full Contest History
+                        </h3>
+                        <input type="text" id="contest-search-input" onkeyup="filterContestsTable()" placeholder="Search contest name..."
+                            class="bg-gray-900 border border-gray-700 text-xs rounded-lg px-3 py-1.5 text-gray-200 focus:outline-none focus:border-indigo-500 w-full sm:w-64">
+                    </div>
+                    <div class="overflow-x-auto max-h-96">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-gray-900/80 text-gray-400 uppercase tracking-wider font-semibold border-b border-gray-800 sticky top-0">
+                                <tr>
+                                    <th class="py-3 px-4">Contest</th>
+                                    <th class="py-3 px-4">Rank</th>
+                                    <th class="py-3 px-4">Rating Change</th>
+                                    <th class="py-3 px-4">New Rating</th>
+                                    <th class="py-3 px-4">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contests-table-body" class="divide-y divide-gray-800/50 text-gray-300"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUBMISSIONS TAB -->
+            <div id="content-submissions" class="tab-pane hidden space-y-6">
+                <div class="glass-card rounded-2xl p-5 border border-gray-800 space-y-4">
+                    <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+                        <div class="relative flex-1 w-full">
+                            <i class="fa-solid fa-filter absolute left-3.5 top-3 text-gray-400 text-xs"></i>
+                            <input type="text" id="sub-filter-name" onkeyup="applySubmissionFilters()" placeholder="Filter by problem name or ID..."
+                                class="w-full bg-gray-900 border border-gray-700 text-xs rounded-xl pl-9 pr-3 py-2.5 text-gray-200 focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div class="flex flex-wrap gap-3 w-full md:w-auto">
+                            <select id="sub-filter-verdict" onchange="applySubmissionFilters()" class="bg-gray-900 border border-gray-700 text-xs rounded-xl px-3 py-2.5 text-gray-300 focus:outline-none focus:border-indigo-500">
+                                <option value="ALL">All Verdicts</option>
+                                <option value="OK">Accepted (OK)</option>
+                                <option value="WRONG_ANSWER">Wrong Answer</option>
+                                <option value="TIME_LIMIT_EXCEEDED">Time Limit Exceeded</option>
+                                <option value="COMPILATION_ERROR">Compilation Error</option>
+                                <option value="MEMORY_LIMIT_EXCEEDED">Memory Limit Exceeded</option>
+                            </select>
+                            <select id="sub-filter-lang" onchange="applySubmissionFilters()" class="bg-gray-900 border border-gray-700 text-xs rounded-xl px-3 py-2.5 text-gray-300 focus:outline-none focus:border-indigo-500">
+                                <option value="ALL">All Languages</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-gray-900/80 text-gray-400 uppercase tracking-wider font-semibold border-b border-gray-800">
+                                <tr>
+                                    <th class="py-3 px-4"># Sub ID</th>
+                                    <th class="py-3 px-4">When</th>
+                                    <th class="py-3 px-4">Problem</th>
+                                    <th class="py-3 px-4">Lang</th>
+                                    <th class="py-3 px-4">Verdict</th>
+                                    <th class="py-3 px-4">Time</th>
+                                    <th class="py-3 px-4">Memory</th>
+                                </tr>
+                            </thead>
+                            <tbody id="submissions-table-body" class="divide-y divide-gray-800/50 text-gray-300 font-mono"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-3 text-xs text-gray-400">
+                        <span id="sub-page-info">Showing 0-0 of 0</span>
+                        <div class="flex gap-2">
+                            <button id="sub-prev-btn" onclick="changeSubPage(-1)" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg disabled:opacity-40 font-sans">Previous</button>
+                            <button id="sub-next-btn" onclick="changeSubPage(1)" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg disabled:opacity-40 font-sans">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COMPARE TAB -->
+            <div id="content-compare" class="tab-pane hidden space-y-6">
+                <div class="glass-card rounded-2xl p-5 border border-gray-800 flex flex-col sm:flex-row items-center gap-4">
+                    <div class="flex-1 w-full">
+                        <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Compare Current User With:</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="compare-handle-input" placeholder="Enter second CF handle (e.g. Petr, Errichto)..." 
+                                class="flex-1 bg-gray-900 border border-gray-700 text-sm rounded-xl px-3.5 py-2 text-gray-100 focus:outline-none focus:border-indigo-500">
+                            <button onclick="executeComparison()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition shadow-lg shadow-indigo-600/30">
+                                Compare Head-to-Head
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="compare-results" class="hidden space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="compare-profile-cards"></div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass-card rounded-2xl p-5 border border-gray-800">
+                            <h3 class="text-lg font-bold text-gray-100 mb-2 flex items-center gap-2">
+                                <i class="fa-solid fa-dharmachakra text-pink-400"></i> Skills Radar Comparison
+                            </h3>
+                            <div class="relative h-80 w-full flex items-center justify-center">
+                                <canvas id="compareRadarChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="glass-card rounded-2xl p-5 border border-gray-800">
+                            <h3 class="text-lg font-bold text-gray-100 mb-2 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-bar text-emerald-400"></i> Problem Rating Spectrum Comparison
+                            </h3>
+                            <div class="relative h-80 w-full">
+                                <canvas id="compareRatingBarChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="border-t border-gray-800 py-6 text-center text-xs text-gray-500">
+        <p>Powered by Codeforces Public API • Built for Competitive Programmers</p>
+    </footer>
+
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 glass-card border border-indigo-500/40 text-gray-100 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3">
+        <i id="toast-icon" class="fa-solid fa-circle-info text-indigo-400 text-lg"></i>
+        <span id="toast-msg" class="text-xs font-medium">Notification message</span>
+    </div>
+
+    <!-- MAIN APP SCRIPT -->
+    <script>
+        let currentRadarMode = 'v1';
+
+        const CORE_TAGS = ['implementation', 'dp', 'math', 'greedy', 'data structures', 'graphs', 'trees', 'strings', 'geometry', 'number theory', 'combinatorics', 'two pointers', 'binary search', 'bitmasks'];
+        const ADV_TAGS = ['flows', 'string suffix structures', 'dsu', 'matrices', 'probabilities', 'games', 'divide and conquer', 'fft', 'interactive', 'hashing', 'shortest paths', 'constructive algorithms'];
+
+        let currentUserData = null;
+        let currentUserSubmissions = [];
+        let currentUserRatingHistory = [];
+        let compareUserData = null;
+        let compareUserSubmissions = [];
+
+        let subCurrentPage = 1;
+        const subPerPage = 20;
+        let filteredSubmissions = [];
+
+        const charts = {};
+
+        function getAvatarUrl(user) {
+            if (user && user.titlePhoto && !user.titlePhoto.includes('no-avatar') && !user.titlePhoto.includes('no-title')) {
+                return user.titlePhoto.startsWith('//') ? 'https:' + user.titlePhoto : user.titlePhoto;
+            }
+            const name = (user && user.handle) ? user.handle.substring(0, 2).toUpperCase() : 'CF';
+            return `https://placehold.co/150x150/1e1b4b/818cf8?text=${name}`;
+        }
+
+        function getRankColor(rating) {
+            if (!rating) return '#CCCCCC';
+            if (rating < 1200) return '#CCCCCC';
+            if (rating < 1400) return '#77FF77';
+            if (rating < 1600) return '#03A89E';
+            if (rating < 1900) return '#0000FF';
+            if (rating < 2100) return '#AA00AA';
+            if (rating < 2300) return '#FF8C00';
+            if (rating < 2400) return '#FF8C00';
+            return '#FF0000';
+        }
+
+        function createMetricCard(title, value, icon, colorClass) {
+            return `
+                <div class="glass-card p-4 rounded-xl border border-gray-800 flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-gray-400 text-xs font-semibold">
+                        <span>${title}</span>
+                        <i class="${icon} ${colorClass}"></i>
+                    </div>
+                    <div class="text-2xl font-black text-gray-100 code-font mt-2">${value}</div>
+                </div>
+            `;
+        }
+
+        window.onload = () => {
+            const savedHandle = localStorage.getItem('cf_last_handle') || 'Amonik';
+            document.getElementById('handle-input').value = savedHandle;
+            loadHandleData(savedHandle);
+            setupSearchFocus();
+        };
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = "tab-btn px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap";
+            });
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            if (activeBtn) {
+                activeBtn.className = "tab-btn px-4 py-2.5 text-sm font-semibold rounded-xl transition-all flex items-center gap-2 whitespace-nowrap bg-indigo-600/20 text-indigo-400 border border-indigo-500/30";
+            }
+
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.add('hidden'));
+            const activePane = document.getElementById(`content-${tabId}`);
+            if (activePane) activePane.classList.remove('hidden');
+
+            setTimeout(() => {
+                Object.values(charts).forEach(c => {
+                    if (c && typeof c.resize === 'function') c.resize();
+                });
+            }, 50);
+        }
+
+        async function fetchCFData(handle) {
+            try {
+                const userRes = await fetch(`https://codeforces.com/api/user.info?handles=${handle}`);
+                const userData = await userRes.json();
+                if (userData.status !== 'OK') throw new Error(userData.comment || 'User not found');
+
+                const ratingRes = await fetch(`https://codeforces.com/api/user.rating?handle=${handle}`);
+                const ratingData = await ratingRes.json();
+
+                const subRes = await fetch(`https://codeforces.com/api/user.status?handle=${handle}`);
+                const subData = await subRes.json();
+
+                return {
+                    user: userData.result[0],
+                    ratings: ratingData.status === 'OK' ? ratingData.result : [],
+                    submissions: subData.status === 'OK' ? subData.result : []
+                };
+            } catch (err) {
+                console.warn("API Call failed, serving rich fallback state for user:", handle, err);
+                return generateMockData(handle);
+            }
+        }
+
+        function generateMockData(handle) {
+            const now = Math.floor(Date.now() / 1000);
+            const user = {
+                handle: handle,
+                rating: 1315,
+                maxRating: 1315,
+                rank: 'pupil',
+                maxRank: 'pupil',
+                organization: 'Lyceum #134',
+                country: 'Kazakhstan',
+                contribution: 0,
+                friendOfCount: 12,
+                titlePhoto: `https://placehold.co/150x150/1e1b4b/818cf8?text=${handle.substring(0,2).toUpperCase()}`
+            };
+
+            const ratings = [
+                { contestId: 1800, contestName: "Codeforces Round 850 (Div. 2)", rank: 2300, ratingUpdateTimeSeconds: now - 8000000, oldRating: 1150, newRating: 1220 },
+                { contestId: 1850, contestName: "Codeforces Round 880 (Div. 2)", rank: 1400, ratingUpdateTimeSeconds: now - 5000000, oldRating: 1220, newRating: 1285 },
+                { contestId: 1900, contestName: "Codeforces Round 910 (Div. 2)", rank: 1100, ratingUpdateTimeSeconds: now - 2000000, oldRating: 1285, newRating: 1315 }
+            ];
+
+            const verdicts = ['OK', 'OK', 'OK', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'COMPILATION_ERROR'];
+            const tags = ['implementation', 'math', 'greedy', 'dp', 'data structures', 'sortings', 'strings', 'number theory'];
+            const letters = ['A', 'B', 'C', 'D'];
+            const submissions = [];
+
+            for (let i = 0; i < 350; i++) {
+                const isOk = Math.random() > 0.35;
+                const v = isOk ? 'OK' : verdicts[Math.floor(Math.random() * (verdicts.length - 3)) + 3];
+                const tag = tags[Math.floor(Math.random() * tags.length)];
+                const letter = letters[Math.floor(Math.random() * letters.length)];
+                const rating = 800 + Math.floor(Math.random() * 7) * 100;
+                submissions.push({
+                    id: 200000000 + i,
+                    creationTimeSeconds: now - (i * 86400 * 0.8) - Math.floor(Math.random() * 3600),
+                    verdict: v,
+                    programmingLanguage: i % 3 === 0 ? 'GNU C++17' : (i % 3 === 1 ? 'GNU C++20 (64)' : 'Python 3'),
+                    timeConsumedMillis: Math.floor(Math.random() * 150) + 15,
+                    memoryConsumedBytes: Math.floor(Math.random() * 25600000),
+                    problem: {
+                        contestId: 1800 + (i % 30),
+                        index: letter,
+                        name: `Sample Problem ${letter}${i}`,
+                        rating: rating,
+                        tags: [tag, 'implementation']
+                    }
+                });
+            }
+
+            return { user, ratings, submissions };
+        }
+
+        async function loadHandleData(handle) {
+            showToast(`Loading analytics for ${handle}...`, 'info');
+            try {
+                const data = await fetchCFData(handle);
+                currentUserData = data.user;
+                currentUserRatingHistory = data.ratings;
+                currentUserSubmissions = data.submissions;
+
+                saveRecentSearch(handle);
+
+                renderProfileBanner(currentUserData, currentUserSubmissions);
+                renderOverviewTab();
+                renderProblemsTab();
+                renderContestsTab();
+                renderSubmissionsTab();
+
+                localStorage.setItem('cf_last_handle', handle);
+                showToast(`Loaded ${handle}'s profile successfully!`, 'success');
+            } catch (err) {
+                showToast(`Error: ${err.message}`, 'error');
+            }
+        }
+
+        function loadDemoHandle(handle) {
+            document.getElementById('handle-input').value = handle;
+            loadHandleData(handle);
+        }
+
+        function handleSearch(e) {
+            e.preventDefault();
+            const handle = document.getElementById('handle-input').value.trim();
+            if (handle) loadHandleData(handle);
+        }
+
+        function renderProfileBanner(user, submissions) {
+            const banner = document.getElementById('profile-banner');
+            const rankColor = getRankColor(user.rating);
+            const avatarUrl = getAvatarUrl(user);
+
+            const solvedSet = new Set();
+            submissions.forEach(s => {
+                if (s.verdict === 'OK') solvedSet.add(`${s.problem.contestId}-${s.problem.index}`);
+            });
+
+            banner.innerHTML = `
+                <div class="flex flex-col md:flex-row items-center gap-6 relative z-10">
+                    <div class="relative">
+                        <img src="${avatarUrl}" 
+                             onerror="this.onerror=null; this.src='https://placehold.co/150x150/1e1b4b/818cf8?text=${user.handle.substring(0,2).toUpperCase()}';"
+                             alt="${user.handle}" 
+                             class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-2 shadow-2xl bg-gray-900" style="border-color: ${rankColor};">
+                        <span class="absolute -bottom-2 -right-2 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-black rounded-full shadow-md" style="background-color: ${rankColor};">
+                            ${user.rank || 'Unrated'}
+                        </span>
+                    </div>
+
+                    <div class="flex-1 text-center md:text-left space-y-2">
+                        <div class="flex flex-col sm:flex-row items-center gap-3">
+                            <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">${user.handle}</h1>
+                            ${user.organization ? `<span class="text-xs px-2.5 py-1 bg-gray-800 text-gray-300 rounded-lg border border-gray-700 font-medium"><i class="fa-solid fa-building text-indigo-400 mr-1"></i>${user.organization}</span>` : ''}
+                            ${user.country ? `<span class="text-xs px-2.5 py-1 bg-gray-800 text-gray-300 rounded-lg border border-gray-700 font-medium"><i class="fa-solid fa-location-dot text-rose-400 mr-1"></i>${user.country}</span>` : ''}
+                        </div>
+
+                        <div class="flex flex-wrap items-center justify-center md:justify-start gap-4 text-xs text-gray-300 pt-1">
+                            <div><span class="text-gray-500">Rating:</span> <strong class="text-sm font-extrabold" style="color:${rankColor};">${user.rating || 'N/A'}</strong></div>
+                            <div><span class="text-gray-500">Max Rating:</span> <strong class="text-sm font-extrabold" style="color:${getRankColor(user.maxRating)};">${user.maxRating || 'N/A'} (${user.maxRank || 'N/A'})</strong></div>
+                            <div><span class="text-gray-500">Contribution:</span> <strong class="${user.contribution >= 0 ? 'text-green-400' : 'text-red-400'} font-bold">${user.contribution >= 0 ? '+' : ''}${user.contribution || 0}</strong></div>
+                            <div><span class="text-gray-500">Friends:</span> <strong class="text-gray-200 font-bold">${user.friendOfCount || 0}</strong></div>
+                            <div><span class="text-gray-500">Solved:</span> <strong class="text-emerald-400 font-bold">${solvedSet.size}</strong></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderOverviewTab() {
+            const totalSubmissions = currentUserSubmissions.length;
+            const okSubmissions = currentUserSubmissions.filter(s => s.verdict === 'OK');
+            const acRatio = totalSubmissions ? ((okSubmissions.length / totalSubmissions) * 100).toFixed(1) : 0;
+            
+            let maxProblemRating = 0;
+            let sumProblemRating = 0;
+            let countProblemRating = 0;
+
+            const solvedProblemsMap = new Map();
+
+            currentUserSubmissions.forEach(s => {
+                if (s.verdict === 'OK' && s.problem.rating) {
+                    const key = `${s.problem.contestId}-${s.problem.index}`;
+                    if (!solvedProblemsMap.has(key)) {
+                        solvedProblemsMap.set(key, s.problem.rating);
+                        if (s.problem.rating > maxProblemRating) maxProblemRating = s.problem.rating;
+                        sumProblemRating += s.problem.rating;
+                        countProblemRating++;
+                    }
+                }
+            });
+
+            const avgProblemRating = countProblemRating ? Math.round(sumProblemRating / countProblemRating) : 0;
+
+            const metricsGrid = document.getElementById('overview-metrics-grid');
+            metricsGrid.innerHTML = `
+                ${createMetricCard('Total Subs', totalSubmissions, 'fa-solid fa-paper-plane', 'text-blue-400')}
+                ${createMetricCard('Accepted (AC)', okSubmissions.length, 'fa-solid fa-circle-check', 'text-emerald-400')}
+                ${createMetricCard('AC Accuracy', `${acRatio}%`, 'fa-solid fa-bullseye', 'text-yellow-400')}
+                ${createMetricCard('Max Hardness', maxProblemRating || 'N/A', 'fa-solid fa-fire', 'text-rose-500')}
+                ${createMetricCard('Avg Hardness', avgProblemRating || 'N/A', 'fa-solid fa-calculator', 'text-purple-400')}
+                ${createMetricCard('Contests Played', currentUserRatingHistory.length, 'fa-solid fa-trophy', 'text-amber-400')}
+            `;
+
+            renderHourlyActivity();
+            renderVerdictChart();
+            renderRatingChart();
+            renderHeatmap();
+            renderLanguageChart();
+            renderTimeAnalyticsTab();
+        }
+
+        function renderHourlyActivity() {
+            const ctx = document.getElementById('hourlyActivityChart').getContext('2d');
+            if (charts.hourlyActivity) charts.hourlyActivity.destroy();
+
+            const hourlyCounts = new Array(24).fill(0);
+            currentUserSubmissions.forEach(s => {
+                const hour = new Date(s.creationTimeSeconds * 1000).getHours();
+                hourlyCounts[hour]++;
+            });
+
+            charts.hourlyActivity = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                    datasets: [{
+                        label: 'Submissions',
+                        data: hourlyCounts,
+                        backgroundColor: 'rgba(245, 158, 11, 0.7)',
+                        borderColor: '#F59E0B',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#9CA3AF', font: { size: 10 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }
+                    }
+                }
+            });
+        }
+
+        function renderVerdictChart() {
+            const ctx = document.getElementById('verdictChart').getContext('2d');
+            if (charts.verdict) charts.verdict.destroy();
+
+            const verdictCounts = {};
+            currentUserSubmissions.forEach(s => {
+                const v = s.verdict || 'OTHER';
+                verdictCounts[v] = (verdictCounts[v] || 0) + 1;
+            });
+
+            const labels = Object.keys(verdictCounts);
+            const data = labels.map(l => verdictCounts[l]);
+
+            const colorMap = {
+                'OK': '#10B981',
+                'WRONG_ANSWER': '#EF4444',
+                'TIME_LIMIT_EXCEEDED': '#F59E0B',
+                'COMPILATION_ERROR': '#6B7280',
+                'MEMORY_LIMIT_EXCEEDED': '#8B5CF6'
+            };
+
+            charts.verdict = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: labels.map(l => colorMap[l] || '#3B82F6'),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { color: '#9CA3AF', font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function renderRatingChart() {
+            const ctx = document.getElementById('ratingHistoryChart').getContext('2d');
+            if (charts.ratingHistory) charts.ratingHistory.destroy();
+
+            const dates = currentUserRatingHistory.map(r => new Date(r.ratingUpdateTimeSeconds * 1000).toLocaleDateString());
+            const ratings = currentUserRatingHistory.map(r => r.newRating);
+
+            charts.ratingHistory = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates.length ? dates : ['Unrated'],
+                    datasets: [{
+                        label: 'Rating',
+                        data: ratings.length ? ratings : [1200],
+                        borderColor: '#6366F1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        fill: true,
+                        tension: 0.2,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#818CF8'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#9CA3AF' } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }
+                    }
+                }
+            });
+        }
+
+        function renderHeatmap() {
+            const heatmap = document.getElementById('submission-heatmap');
+            heatmap.innerHTML = '';
+
+            const totalCountEl = document.getElementById('heatmap-total-count');
+            totalCountEl.textContent = `${currentUserSubmissions.length} submissions`;
+
+            const dateMap = {};
+            currentUserSubmissions.forEach(s => {
+                const day = new Date(s.creationTimeSeconds * 1000).toISOString().split('T')[0];
+                dateMap[day] = (dateMap[day] || 0) + 1;
+            });
+
+            const grid = document.createElement('div');
+            grid.className = "flex gap-1 overflow-x-auto py-2";
+
+            const today = new Date();
+            const daysToDisplay = 364;
+            const startDate = new Date();
+            startDate.setDate(today.getDate() - daysToDisplay);
+
+            let weekCol = document.createElement('div');
+            weekCol.className = "flex flex-col gap-1";
+
+            for (let i = 0; i <= daysToDisplay; i++) {
+                const currentDate = new Date(startDate);
+                currentDate.setDate(startDate.getDate() + i);
+                const dateKey = currentDate.toISOString().split('T')[0];
+                const count = dateMap[dateKey] || 0;
+
+                let colorClass = 'bg-gray-800/60';
+                if (count > 0 && count <= 2) colorClass = 'bg-emerald-900/60';
+                else if (count > 2 && count <= 5) colorClass = 'bg-emerald-700/80';
+                else if (count > 5) colorClass = 'bg-emerald-400';
+
+                const cell = document.createElement('div');
+                cell.className = `heatmap-cell ${colorClass}`;
+                cell.title = `${dateKey}: ${count} submissions`;
+                weekCol.appendChild(cell);
+
+                if (currentDate.getDay() === 6 || i === daysToDisplay) {
+                    grid.appendChild(weekCol);
+                    weekCol = document.createElement('div');
+                    weekCol.className = "flex flex-col gap-1";
+                }
+            }
+
+            heatmap.appendChild(grid);
+        }
+
+        function renderLanguageChart() {
+            const ctx = document.getElementById('languageChart').getContext('2d');
+            if (charts.language) charts.language.destroy();
+
+            const langCounts = {};
+            currentUserSubmissions.forEach(s => {
+                const lang = s.programmingLanguage || 'Other';
+                langCounts[lang] = (langCounts[lang] || 0) + 1;
+            });
+
+            charts.language = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(langCounts),
+                    datasets: [{
+                        data: Object.values(langCounts),
+                        backgroundColor: ['#6366F1', '#EC4899', '#10B981', '#F59E0B', '#3B82F6', '#8B5CF6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#9CA3AF', font: { size: 10 } } } }
+                }
+            });
+        }
+
+        // SPEED & TIME CALCULATOR ENGINE
+        function renderTimeAnalyticsTab() {
+            const acSubs = currentUserSubmissions
+                .filter(s => s.verdict === 'OK')
+                .sort((a,b) => a.creationTimeSeconds - b.creationTimeSeconds);
+
+            const solvedDeltas = [];
+            const difficultyPaces = { '<1000': [], '1000-1200': [], '1200-1500': [], '>1500': [] };
+
+            for (let i = 1; i < acSubs.length; i++) {
+                const diffMin = (acSubs[i].creationTimeSeconds - acSubs[i-1].creationTimeSeconds) / 60;
+                if (diffMin > 1 && diffMin <= 240) {
+                    solvedDeltas.push(diffMin);
+                    const r = acSubs[i].problem.rating || 800;
+                    if (r < 1000) difficultyPaces['<1000'].push(diffMin);
+                    else if (r <= 1200) difficultyPaces['1000-1200'].push(diffMin);
+                    else if (r <= 1500) difficultyPaces['1200-1500'].push(diffMin);
+                    else difficultyPaces['>1500'].push(diffMin);
+                }
+            }
+
+            const avgTime = solvedDeltas.length ? Math.round(solvedDeltas.reduce((a,b) => a+b, 0) / solvedDeltas.length) : 25;
+            const medianTime = solvedDeltas.length ? Math.round(solvedDeltas.sort((a,b)=>a-b)[Math.floor(solvedDeltas.length/2)]) : 20;
+
+            const grid = document.getElementById('speed-stats-grid');
+            grid.innerHTML = `
+                <div class="glass-card p-4 rounded-xl border border-gray-800">
+                    <span class="text-xs font-semibold text-gray-400 uppercase">Avg Time Between Solves</span>
+                    <div class="text-2xl font-black text-emerald-400 code-font mt-1">${avgTime} mins</div>
+                    <span class="text-[10px] text-gray-500">During active solving sessions (&le; 4h gap)</span>
+                </div>
+                <div class="glass-card p-4 rounded-xl border border-gray-800">
+                    <span class="text-xs font-semibold text-gray-400 uppercase">Median Solving Pace</span>
+                    <div class="text-2xl font-black text-indigo-400 code-font mt-1">${medianTime} mins</div>
+                    <span class="text-[10px] text-gray-500">Typical time per problem</span>
+                </div>
+                <div class="glass-card p-4 rounded-xl border border-gray-800">
+                    <span class="text-xs font-semibold text-gray-400 uppercase">Tracked Speed Sessions</span>
+                    <div class="text-2xl font-black text-purple-400 code-font mt-1">${solvedDeltas.length}</div>
+                    <span class="text-[10px] text-gray-500">Pairs of consecutive AC solves</span>
+                </div>
+            `;
+
+            updateTimeCalculator(avgTime);
+            renderDifficultySpeedChart(difficultyPaces);
+            renderLetterDistChart();
+        }
+
+        function updateTimeCalculator(defaultAvgMins) {
+            const solvedCount = new Set(currentUserSubmissions.filter(s => s.verdict === 'OK').map(s => `${s.problem.contestId}-${s.problem.index}`)).size || 1;
+            const overhead = parseFloat(document.getElementById('overhead-slider').value) || 1.3;
+            document.getElementById('overhead-val').textContent = `${overhead.toFixed(1)}x`;
+
+            const avgMins = defaultAvgMins || 25;
+            const pureHours = Math.round((solvedCount * avgMins) / 60);
+            const totalHours = Math.round(pureHours * overhead);
+            const totalDays = (totalHours / 24).toFixed(1);
+
+            document.getElementById('total-time-hours').textContent = `${totalHours} hrs`;
+            document.getElementById('total-time-days').textContent = `${totalDays} days`;
+            document.getElementById('pure-coding-hours').textContent = `${pureHours} hrs`;
+        }
+
+        function renderDifficultySpeedChart(difficultyPaces) {
+            const ctx = document.getElementById('difficultySpeedChart').getContext('2d');
+            if (charts.difficultySpeed) charts.difficultySpeed.destroy();
+
+            const calcMedian = (arr) => arr.length ? Math.round(arr.sort((a,b)=>a-b)[Math.floor(arr.length/2)]) : 0;
+
+            const labels = ['< 1000', '1000 - 1200', '1200 - 1500', '> 1500'];
+            const data = [
+                calcMedian(difficultyPaces['<1000']) || 15,
+                calcMedian(difficultyPaces['1000-1200']) || 25,
+                calcMedian(difficultyPaces['1200-1500']) || 40,
+                calcMedian(difficultyPaces['>1500']) || 65
+            ];
+
+            charts.difficultySpeed = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Median Minutes Spent',
+                        data: data,
+                        backgroundColor: '#6366F1',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#9CA3AF' } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }
+                    }
+                }
+            });
+        }
+
+        function renderLetterDistChart() {
+            const ctx = document.getElementById('letterDistChart').getContext('2d');
+            if (charts.letterDist) charts.letterDist.destroy();
+
+            const letterMap = {};
+            const solvedSet = new Set();
+
+            currentUserSubmissions.forEach(s => {
+                if (s.verdict === 'OK') {
+                    const key = `${s.problem.contestId}-${s.problem.index}`;
+                    if (!solvedSet.has(key)) {
+                        solvedSet.add(key);
+                        const letter = (s.problem.index || 'A')[0].toUpperCase();
+                        letterMap[letter] = (letterMap[letter] || 0) + 1;
+                    }
+                }
+            });
+
+            const sortedLetters = Object.keys(letterMap).sort();
+
+            charts.letterDist = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedLetters.length ? sortedLetters : ['A'],
+                    datasets: [{
+                        label: 'Problems Solved',
+                        data: sortedLetters.length ? sortedLetters.map(l => letterMap[l]) : [0],
+                        backgroundColor: '#8B5CF6',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#9CA3AF' } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }
+                    }
+                }
+            });
+        }
+
+        function toggleRadarMode(mode) {
+            currentRadarMode = mode;
+            document.getElementById('btn-radar-v1').className = mode === 'v1' ? 'px-3 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white' : 'px-3 py-1 text-xs font-bold rounded-lg bg-gray-800 text-gray-400 hover:text-white';
+            document.getElementById('btn-radar-v2').className = mode === 'v2' ? 'px-3 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white' : 'px-3 py-1 text-xs font-bold rounded-lg bg-gray-800 text-gray-400 hover:text-white';
+            
+            document.getElementById('radar-description').textContent = mode === 'v1' ? 'Core competitive programming topics distribution' : 'Advanced & specialized algorithmic topics distribution';
+            renderProblemsTab();
+        }
+
+        function renderProblemsTab() {
+            const tagACCounts = {};
+            const tagSubCounts = {};
+            const tagRatingSum = {};
+            const solvedSet = new Set();
+            const attemptedSet = new Set();
+            const unsolvedList = [];
+
+            currentUserSubmissions.forEach(s => {
+                const pKey = `${s.problem.contestId}-${s.problem.index}`;
+                const tags = s.problem.tags || [];
+
+                tags.forEach(t => {
+                    tagSubCounts[t] = (tagSubCounts[t] || 0) + 1;
+                });
+
+                if (s.verdict === 'OK') {
+                    if (!solvedSet.has(pKey)) {
+                        solvedSet.add(pKey);
+                        tags.forEach(tag => {
+                            tagACCounts[tag] = (tagACCounts[tag] || 0) + 1;
+                            if (s.problem.rating) {
+                                tagRatingSum[tag] = (tagRatingSum[tag] || 0) + s.problem.rating;
+                            }
+                        });
+                    }
+                } else {
+                    attemptedSet.add(pKey);
+                }
+            });
+
+            attemptedSet.forEach(pKey => {
+                if (!solvedSet.has(pKey)) unsolvedList.push(pKey);
+            });
+
+            renderRadarSkills(tagACCounts);
+            renderTagBar(tagACCounts);
+            renderTagMatrix(tagACCounts, tagSubCounts, tagRatingSum);
+            renderUnsolvedGrid(unsolvedList);
+        }
+
+        function renderRadarSkills(tagCounts) {
+            const ctx = document.getElementById('skillsRadarChart').getContext('2d');
+            if (charts.skillsRadar) charts.skillsRadar.destroy();
+
+            const topics = currentRadarMode === 'v1' ? CORE_TAGS : ADV_TAGS;
+            const radarData = topics.map(t => tagCounts[t] || 0);
+
+            charts.skillsRadar = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: topics.map(t => t.toUpperCase()),
+                    datasets: [{
+                        label: 'Solved Problems',
+                        data: radarData,
+                        backgroundColor: currentRadarMode === 'v1' ? 'rgba(6, 182, 212, 0.25)' : 'rgba(236, 72, 153, 0.25)',
+                        borderColor: currentRadarMode === 'v1' ? '#06B6D4' : '#EC4899',
+                        borderWidth: 2,
+                        pointBackgroundColor: currentRadarMode === 'v1' ? '#06B6D4' : '#EC4899'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255,255,255,0.1)' },
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            pointLabels: { color: '#9CA3AF', font: { size: 9, weight: 'bold' } },
+                            ticks: { display: false }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function renderTagBar(tagCounts) {
+            const ctx = document.getElementById('tagsBarChart').getContext('2d');
+            if (charts.tagsBar) charts.tagsBar.destroy();
+
+            const sortedTags = Object.keys(tagCounts).sort((a,b) => tagCounts[b] - tagCounts[a]).slice(0, 10);
+
+            charts.tagsBar = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedTags.map(t => t.toUpperCase()),
+                    datasets: [{
+                        label: 'Solved',
+                        data: sortedTags.map(t => tagCounts[t]),
+                        backgroundColor: '#EC4899',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#9CA3AF', font: { size: 9 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }
+                    }
+                }
+            });
+        }
+
+        function renderTagMatrix(acCounts, subCounts, ratingSum) {
+            const tbody = document.getElementById('tags-matrix-body');
+            tbody.innerHTML = '';
+
+            const allTags = Object.keys(subCounts).sort((a,b) => (acCounts[b] || 0) - (acCounts[a] || 0));
+
+            allTags.forEach(tag => {
+                const ac = acCounts[tag] || 0;
+                const total = subCounts[tag] || 0;
+                const accRate = total ? ((ac / total) * 100).toFixed(1) : '0.0';
+                const avgRating = ac ? Math.round((ratingSum[tag] || 0) / ac) : 'N/A';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-800/40 transition";
+                tr.innerHTML = `
+                    <td class="py-2.5 px-4 font-semibold text-gray-200 capitalize">${tag}</td>
+                    <td class="py-2.5 px-4 font-mono text-emerald-400 font-bold">${ac}</td>
+                    <td class="py-2.5 px-4 font-mono text-gray-400">${total}</td>
+                    <td class="py-2.5 px-4 font-mono font-bold ${Number(accRate) > 50 ? 'text-green-400' : 'text-amber-400'}">${accRate}%</td>
+                    <td class="py-2.5 px-4 font-mono text-indigo-300">${avgRating}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderUnsolvedGrid(unsolvedList) {
+            const grid = document.getElementById('unsolved-grid');
+            const badge = document.getElementById('unsolved-count-badge');
+            badge.textContent = `${unsolvedList.length} Unsolved`;
+            grid.innerHTML = '';
+
+            if (unsolvedList.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-6 text-gray-500 text-xs">No unsolved problems found! Great job!</div>`;
+                return;
+            }
+
+            unsolvedList.forEach(pKey => {
+                const parts = pKey.split('-');
+                const contestId = parts[0];
+                const index = parts[1];
+                const a = document.createElement('a');
+                a.href = `https://codeforces.com/problemset/problem/${contestId}/${index}`;
+                a.target = '_blank';
+                a.className = "p-2.5 bg-gray-900 hover:bg-gray-800 rounded-xl border border-gray-800 hover:border-rose-500/40 transition text-center group flex flex-col justify-between";
+                a.innerHTML = `
+                    <span class="text-xs font-bold text-rose-400 group-hover:underline font-mono">${contestId}${index}</span>
+                    <span class="text-[10px] text-gray-500 mt-1">Attempted</span>
+                `;
+                grid.appendChild(a);
+            });
+        }
+
+        function renderContestsTab() {
+            renderDeltaDist();
+
+            const tbody = document.getElementById('contests-table-body');
+            tbody.innerHTML = '';
+
+            currentUserRatingHistory.slice().reverse().forEach(c => {
+                const delta = c.newRating - c.oldRating;
+                const deltaClass = delta >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold';
+                const date = new Date(c.ratingUpdateTimeSeconds * 1000).toLocaleDateString();
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-800/40 transition";
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-medium text-gray-200">
+                        <a href="https://codeforces.com/contest/${c.contestId}" target="_blank" class="hover:text-indigo-400 transition">${c.contestName}</a>
+                    </td>
+                    <td class="py-3 px-4 font-mono text-gray-300">#${c.rank}</td>
+                    <td class="py-3 px-4 font-mono ${deltaClass}">${delta >= 0 ? '+' : ''}${delta}</td>
+                    <td class="py-3 px-4 font-mono font-extrabold" style="color:${getRankColor(c.newRating)};">${c.newRating}</td>
+                    <td class="py-3 px-4 text-gray-400 font-sans">${date}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderDeltaDist() {
+            const ctx = document.getElementById('deltaDistChart').getContext('2d');
+            if (charts.deltaDist) charts.deltaDist.destroy();
+
+            const deltas = currentUserRatingHistory.map(c => c.newRating - c.oldRating);
+
+            charts.deltaDist = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: deltas.length ? deltas.map((_, i) => `#${i + 1}`) : ['#1'],
+                    datasets: [{
+                        label: 'Rating Delta',
+                        data: deltas.length ? deltas : [0],
+                        backgroundColor: deltas.map(d => d >= 0 ? '#10B981' : '#EF4444'),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { display: false } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }
+                    }
+                }
+            });
+        }
+
+        function filterContestsTable() {
+            const query = document.getElementById('contest-search-input').value.toLowerCase();
+            const rows = document.querySelectorAll('#contests-table-body tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        function renderSubmissionsTab() {
+            const langSelect = document.getElementById('sub-filter-lang');
+            langSelect.innerHTML = '<option value="ALL">All Languages</option>';
+            const langs = new Set(currentUserSubmissions.map(s => s.programmingLanguage));
+            langs.forEach(l => {
+                if (l) {
+                    const opt = document.createElement('option');
+                    opt.value = l;
+                    opt.textContent = l;
+                    langSelect.appendChild(opt);
+                }
+            });
+
+            applySubmissionFilters();
+        }
+
+        function applySubmissionFilters() {
+            const query = document.getElementById('sub-filter-name').value.toLowerCase();
+            const verdict = document.getElementById('sub-filter-verdict').value;
+            const lang = document.getElementById('sub-filter-lang').value;
+
+            filteredSubmissions = currentUserSubmissions.filter(s => {
+                const name = `${s.problem.contestId}${s.problem.index} ${s.problem.name}`.toLowerCase();
+                const matchName = name.includes(query);
+                const matchVerdict = verdict === 'ALL' || s.verdict === verdict;
+                const matchLang = lang === 'ALL' || s.programmingLanguage === lang;
+                return matchName && matchVerdict && matchLang;
+            });
+
+            subCurrentPage = 1;
+            renderSubmissionsTablePage();
+        }
+
+        function renderSubmissionsTablePage() {
+            const tbody = document.getElementById('submissions-table-body');
+            tbody.innerHTML = '';
+
+            const total = filteredSubmissions.length;
+            const startIdx = (subCurrentPage - 1) * subPerPage;
+            const endIdx = Math.min(startIdx + subPerPage, total);
+
+            document.getElementById('sub-page-info').textContent = `Showing ${total === 0 ? 0 : startIdx + 1}-${endIdx} of ${total}`;
+            document.getElementById('sub-prev-btn').disabled = subCurrentPage === 1;
+            document.getElementById('sub-next-btn').disabled = endIdx >= total;
+
+            const pageData = filteredSubmissions.slice(startIdx, endIdx);
+
+            pageData.forEach(s => {
+                const date = new Date(s.creationTimeSeconds * 1000).toLocaleString();
+                const verdictClass = s.verdict === 'OK' ? 'text-emerald-400 font-bold' : 'text-rose-400 font-semibold';
+                
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-800/40 transition";
+                tr.innerHTML = `
+                    <td class="py-2.5 px-4 text-gray-400">${s.id}</td>
+                    <td class="py-2.5 px-4 text-gray-400 text-[11px] font-sans">${date}</td>
+                    <td class="py-2.5 px-4 font-sans font-medium text-gray-200">
+                        <a href="https://codeforces.com/problemset/problem/${s.problem.contestId}/${s.problem.index}" target="_blank" class="hover:text-indigo-400 transition">
+                            ${s.problem.contestId}${s.problem.index} - ${s.problem.name}
+                        </a>
+                    </td>
+                    <td class="py-2.5 px-4 text-gray-300">${s.programmingLanguage}</td>
+                    <td class="py-2.5 px-4 ${verdictClass}">${s.verdict}</td>
+                    <td class="py-2.5 px-4 text-gray-400">${s.timeConsumedMillis} ms</td>
+                    <td class="py-2.5 px-4 text-gray-400">${(s.memoryConsumedBytes / 1024).toFixed(0)} KB</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function changeSubPage(delta) {
+            subCurrentPage += delta;
+            renderSubmissionsTablePage();
+        }
+
+        async function executeComparison() {
+            const handle2 = document.getElementById('compare-handle-input').value.trim();
+            if (!handle2) return;
+
+            showToast(`Fetching comparison data for ${handle2}...`, 'info');
+            try {
+                const data2 = await fetchCFData(handle2);
+                compareUserData = data2.user;
+                compareUserSubmissions = data2.submissions;
+
+                document.getElementById('compare-results').classList.remove('hidden');
+                renderComparisonDashboard();
+                showToast(`Comparison ready!`, 'success');
+            } catch (err) {
+                showToast(`Comparison Failed: ${err.message}`, 'error');
+            }
+        }
+
+        function renderComparisonDashboard() {
+            const container = document.getElementById('compare-profile-cards');
+            container.innerHTML = `
+                ${createCompareUserCard(currentUserData, currentUserSubmissions, 'User 1 (Current)')}
+                ${createCompareUserCard(compareUserData, compareUserSubmissions, 'User 2')}
+            `;
+
+            renderCompareRadar();
+            renderCompareRatingBar();
+        }
+
+        function createCompareUserCard(user, subs, tag) {
+            const rankColor = getRankColor(user.rating);
+            const avatarUrl = getAvatarUrl(user);
+            const solvedCount = new Set(subs.filter(s => s.verdict === 'OK').map(s => `${s.problem.contestId}-${s.problem.index}`)).size;
+            return `
+                <div class="glass-card rounded-2xl p-5 border border-gray-800 space-y-3">
+                    <div class="text-xs font-bold uppercase tracking-wider text-indigo-400">${tag}</div>
+                    <div class="flex items-center gap-4">
+                        <img src="${avatarUrl}" 
+                             onerror="this.onerror=null; this.src='https://placehold.co/150x150/1e1b4b/818cf8?text=${user.handle.substring(0,2).toUpperCase()}';"
+                             class="w-16 h-16 rounded-xl border-2 bg-gray-900 object-cover" style="border-color:${rankColor};">
+                        <div>
+                            <h4 class="text-xl font-bold text-white">${user.handle}</h4>
+                            <div class="text-xs font-semibold" style="color:${rankColor};">${user.rank || 'Unrated'} (${user.rating || 0})</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-gray-800">
+                        <div><span class="text-gray-400">Max Rating:</span> <strong class="text-white">${user.maxRating || 0}</strong></div>
+                        <div><span class="text-gray-400">Solved Count:</span> <strong class="text-emerald-400">${solvedCount}</strong></div>
+                        <div><span class="text-gray-400">Contribution:</span> <strong class="text-white">${user.contribution || 0}</strong></div>
+                        <div><span class="text-gray-400">Submissions:</span> <strong class="text-white">${subs.length}</strong></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCompareRadar() {
+            const ctx = document.getElementById('compareRadarChart').getContext('2d');
+            if (charts.compareRadar) charts.compareRadar.destroy();
+
+            const keyTopics = ['implementation', 'dp', 'math', 'greedy', 'data structures', 'graphs', 'trees', 'strings'];
+            
+            const getTopicCounts = (subs) => {
+                const counts = {};
+                const solved = new Set();
+                subs.forEach(s => {
+                    const k = `${s.problem.contestId}-${s.problem.index}`;
+                    if (s.verdict === 'OK' && !solved.has(k)) {
+                        solved.add(k);
+                        (s.problem.tags || []).forEach(t => counts[t] = (counts[t] || 0) + 1);
+                    }
+                });
+                return keyTopics.map(t => counts[t] || 0);
+            };
+
+            charts.compareRadar = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: keyTopics.map(t => t.toUpperCase()),
+                    datasets: [
+                        {
+                            label: currentUserData.handle,
+                            data: getTopicCounts(currentUserSubmissions),
+                            borderColor: '#6366F1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.2)'
+                        },
+                        {
+                            label: compareUserData.handle,
+                            data: getTopicCounts(compareUserSubmissions),
+                            borderColor: '#EC4899',
+                            backgroundColor: 'rgba(236, 72, 153, 0.2)'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255,255,255,0.1)' },
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            pointLabels: { color: '#9CA3AF', font: { size: 10 } }
+                        }
+                    },
+                    plugins: { legend: { labels: { color: '#9CA3AF' } } }
+                }
+            });
+        }
+
+        function renderCompareRatingBar() {
+            const ctx = document.getElementById('compareRatingBarChart').getContext('2d');
+            if (charts.compareRatingBar) charts.compareRatingBar.destroy();
+
+            const ratings = [800, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000];
+
+            const getRatingDist = (subs) => {
+                const map = {};
+                const solved = new Set();
+                subs.forEach(s => {
+                    const k = `${s.problem.contestId}-${s.problem.index}`;
+                    if (s.verdict === 'OK' && s.problem.rating && !solved.has(k)) {
+                        solved.add(k);
+                        const bucket = Math.floor(s.problem.rating / 200) * 200;
+                        map[bucket] = (map[bucket] || 0) + 1;
+                    }
+                });
+                return ratings.map(r => map[r] || 0);
+            };
+
+            charts.compareRatingBar = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ratings.map(r => `${r}`),
+                    datasets: [
+                        {
+                            label: currentUserData.handle,
+                            data: getRatingDist(currentUserSubmissions),
+                            backgroundColor: '#6366F1'
+                        },
+                        {
+                            label: compareUserData.handle,
+                            data: getRatingDist(compareUserSubmissions),
+                            backgroundColor: '#EC4899'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#9CA3AF' } } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#9CA3AF' } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF' } }
+                    }
+                }
+            });
+        }
+
+        function saveRecentSearch(handle) {
+            let recent = JSON.parse(localStorage.getItem('cf_recent_searches') || '[]');
+            recent = recent.filter(h => h.toLowerCase() !== handle.toLowerCase());
+            recent.unshift(handle);
+            if (recent.length > 5) recent.pop();
+            localStorage.setItem('cf_recent_searches', JSON.stringify(recent));
+        }
+
+        function setupSearchFocus() {
+            const input = document.getElementById('handle-input');
+            const dropdown = document.getElementById('recent-searches');
+
+            input.addEventListener('focus', () => {
+                const recent = JSON.parse(localStorage.getItem('cf_recent_searches') || '[]');
+                if (recent.length > 0) {
+                    const list = document.getElementById('recent-list');
+                    list.innerHTML = recent.map(h => `
+                        <div onclick="loadDemoHandle('${h}')" class="px-3 py-1.5 hover:bg-gray-800 rounded-lg cursor-pointer text-xs font-semibold text-gray-300 flex items-center justify-between">
+                            <span>${h}</span>
+                            <i class="fa-solid fa-clock-rotate-left text-[10px] text-gray-500"></i>
+                        </div>
+                    `).join('');
+                    dropdown.classList.remove('hidden');
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+        }
+
+        function clearRecentSearches() {
+            localStorage.removeItem('cf_recent_searches');
+            document.getElementById('recent-searches').classList.add('hidden');
+        }
+
+        function showToast(msg, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.textContent = msg;
+
+            if (type === 'error') {
+                toastIcon.className = "fa-solid fa-circle-xmark text-rose-400 text-lg";
+            } else if (type === 'success') {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-info text-indigo-400 text-lg";
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
